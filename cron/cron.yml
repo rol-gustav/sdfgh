@@ -1,0 +1,24 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: "<name>"
+  namespace: "<namespace>"
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: "<name>"
+        spec:
+          containers:
+          - name: "<name>"
+            image: "<image>:<tag>"
+            envFrom:
+            - secretRef:
+                name: application-config-secret
+          restartPolicy: Never
+  schedule: "* * * * *"
+  successfulJobsHistoryLimit: 10

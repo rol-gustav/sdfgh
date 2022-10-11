@@ -1,0 +1,48 @@
+--- #--------------------------------------------------
+
+#--------------------------------------------------
+# This workflow will build a docker container,
+# publish it to Google Container Registry,
+# and deploy it to GKE (Google Cloud Kubernetes) in RIO test environment.
+# Trigged when ready for e2e testning by doing a commit to Git branch teste2e
+# from Milestone branch */rc
+# After the deployment job the workflow will start another job
+# that performs e2e test on the deployed docker container.
+name: (Dev) Build docker image and deploy to container registry in Azure.
+
+on: [workflow_dispatch]
+# Workflow job that setup, build, publish and deploy
+jobs:
+  deploy:
+    name: Configure, Build, Publish
+    env:
+      AZURE_CONTAINER_PASSWORD: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_ADMIN_PASSWORD}}
+      AZURE_CONTAINER_SERVER: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_SERVER}}
+      AZURE_CONTAINER_USERNAME: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_ADMIN_USERNAME}}
+      IMAGE: # <name>
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_SERVER}}
+          username: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_ADMIN_USERNAME}}
+          password: ${{secrets.AZURE_CONTAINER_REGISTRY_PRODUCTION_ADMIN_PASSWORD}}
+
+      # Build the Docker image
+      - name: Build
+        run: |-
+          docker build \
+            --tag "$AZURE_CONTAINER_SERVER/$IMAGE:$GITHUB_SHA" \
+            --build-arg GITHUB_SHA="$GITHUB_SHA" \
+            --build-arg GITHUB_REF="$GITHUB_REF" \
+            -f ./Dockerfile \
+            .
+          docker images
+      # Push the Docker image to Azure Container Registry
+      - name: Publish image to Azure Container Registry
+        run: |-
+          docker push "$AZURE_CONTAINER_SERVER/$IMAGE:$GITHUB_SHA"
